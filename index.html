@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ช่วยเหลือผู้คนตอนเกิดอุทกภัย</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <style>
+    body { margin:0; font-family:sans-serif; }
+    #map { height:100vh; width:100%; }
+
+    #menuBtn {
+      position:absolute;
+      top:10px; left:10px;
+      z-index:1001;
+      background:#fff;
+      border:none;
+      padding:10px;
+      font-size:20px;
+      border-radius:8px;
+    }
+
+    #sidebar {
+      position:absolute;
+      top:0; left:-280px;
+      width:260px;
+      height:100%;
+      background:#fff;
+      padding:15px;
+      z-index:1000;
+      transition:0.3s;
+      box-shadow:2px 0 10px rgba(0,0,0,0.2);
+    }
+
+    #sidebar.open { left:0; }
+
+    input,select { width:100%; padding:8px; margin:5px 0; }
+  </style>
+</head>
+
+<body>
+
+<button id="menuBtn">☰</button>
+
+<div id="sidebar">
+  <h3>เมนู</h3>
+
+  <select id="caseType">
+    <option value="ต้องการอพยพ">ต้องการอพยพ</option>
+    <option value="มีผู้ป่วยในบ้าน">มีผู้ป่วยในบ้าน</option>
+    <option value="ต้องการอาหาร">ต้องการอาหาร</option>
+  </select>
+
+  <input id="phone" placeholder="เบอร์โทร"
+    inputmode="numeric"
+    oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
+
+  <hr>
+
+  <button onclick="window.location.href='./login.html'">
+  เข้าสู่ระบบอาสา
+</button>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, push, onValue, update, remove }
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "help-people-38dfd.firebaseapp.com",
+  databaseURL: "https://help-people-38dfd-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "help-people-38dfd"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const map = L.map("map").setView([13.75,100.5],6);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+
+let markers = {};
+const dbRef = ref(db,"cases");
+
+/* client id */
+let clientId = localStorage.getItem("cid");
+if(!clientId){
+  clientId = crypto.randomUUID();
+  localStorage.setItem("cid",clientId);
+}
+
+/* menu */
+document.getElementById("menuBtn").onclick=()=>{
+  document.getElementById("sidebar").classList.toggle("open");
+};
+
+/* load cases */
+onValue(dbRef,snap=>{
+  const data = snap.val()||{};
+
+  Object.values(markers).forEach(m=>map.removeLayer(m));
+  markers={};
+
+  for(let id in data){
+    let c=data[id];
+
+    let color="blue";
+    if(c.type==="มีผู้ป่วยในบ้าน")color="red";
+    if(c.type==="ต้องการอาหาร")color="yellow";
+    if(c.type==="ต้องการอพยพ")color="green";
+
+    let icon=L.icon({
+      iconUrl:`https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+      shadowUrl:"https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+      iconSize:[25,41],
+      iconAnchor:[12,41]
+    });
+
+    let m=L.marker([c.lat,c.lng],{icon}).addTo(map);
+
+    m.bindPopup(`
+      🚨 ${c.type}<br>
+      📞 ${c.phone}<br>
+      👤 ${c.assignedName||"ยังไม่รับเคส"}<br>
+      📊 ${c.status}<br><br>
+
+      ${!c.assignedName ? `
+        <button onclick="takeCase('${id}')">🚑 รับเคส</button>
+      ` : `
+        ${c.rescuerId===clientId ? `
+          <button onclick="setStatus('${id}','กำลังไป')">🚗 กำลังไป</button>
+          <button onclick="setStatus('${id}','ช่วยเหลือเสร็จสิ้น')">✅ เสร็จสิ้น</button>
+        ` : `
+          <span>🔒 รับแล้ว</span>
+        `}
+      `}
+
+      ${
+        (c.createdBy===clientId || c.rescuerId===clientId || c.status==="ช่วยเหลือเสร็จสิ้น")
+        ? `<br><button onclick="deleteCase('${id}')">🗑 ลบเคส</button>`
+        : ""
+      }
+    `);
+
+    markers[id]=m;
+  }
+});
+
+/* create case */
+map.on("click",e=>{
+  let phone=document.getElementById("phone").value;
+  if(phone.length<9)return alert("เบอร์ไม่ถูกต้อง");
+
+  if(!confirm("ยืนยันสร้างเคส?"))return;
+
+  push(dbRef,{
+    lat:e.latlng.lat,
+    lng:e.latlng.lng,
+    type:document.getElementById("caseType").value,
+    phone,
+    status:"ยังไม่รับเคส",
+    assignedName:"",
+    createdBy:clientId,
+    rescuerId:""
+  });
+});
+
+/* take case */
+window.takeCase=function(id){
+  let idCard=prompt("เลขอาสา");
+  if(!idCard||!/^\d{3,}$/.test(idCard))return alert("เลขอาสาผิด");
+
+  let name=prompt("ชื่อ");
+  if(!name||/\d/.test(name))return alert("ชื่อห้ามมีเลข");
+
+  let org=prompt("มูลนิธิ");
+  if(!org||/\d/.test(org))return alert("มูลนิธิห้ามมีเลข");
+
+  update(ref(db,"cases/"+id),{
+    assignedName:`${name} (${org}) #${idCard}`,
+    status:"กำลังไป",
+    rescuerId:idCard
+  });
+};
+
+/* status */
+window.setStatus=(id,s)=>update(ref(db,"cases/"+id),{status:s});
+
+/* delete */
+window.deleteCase=id=>remove(ref(db,"cases/"+id));
+
+</script>
+
+</body>
+</html>

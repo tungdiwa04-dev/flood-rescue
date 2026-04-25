@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ADMIN - ควบคุมระบบช่วยเหลือ</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <style>
+    #map { height: 100vh; width: 100%; }
+
+    #ui {
+      position: absolute;
+      z-index: 999;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    input, select, button {
+      width: 200px;
+      padding: 5px;
+      margin: 3px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div id="ui">
+  <b>🛠 ADMIN PANEL</b><br>
+
+  <!-- 🔥 ปุ่มคอนโทรล -->
+  <button onclick="location.href='control.html'">🎛 คอนโทรล</button>
+
+  <br><br>
+
+  <b>📌 แจ้งขอความช่วยเหลือ</b><br>
+
+  <select id="caseType">
+    <option value="ต้องการอพยพ">ต้องการอพยพ</option>
+    <option value="มีผู้ป่วยในบ้าน">มีผู้ป่วยในบ้าน</option>
+    <option value="ต้องการอาหาร">ต้องการอาหาร</option>
+  </select>
+
+  <br>
+
+  📞
+  <input id="phone"
+    placeholder="เบอร์โทรผู้แจ้ง"
+    inputmode="numeric"
+    oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, push, onValue, update, remove }
+  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAsuFUawGkg-CaXDyphcvUWNWX0t6kFAjg",
+    authDomain: "help-people-38dfd.firebaseapp.com",
+    databaseURL: "https://help-people-38dfd-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "help-people-38dfd",
+    storageBucket: "help-people-38dfd.firebasestorage.app",
+    messagingSenderId: "434887079479",
+    appId: "1:434887079479:web:55410655396bb90298f1b2"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  var map = L.map('map').setView([13.7563, 100.5018], 6);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+  }).addTo(map);
+
+  let markers = {};
+  const dbRef = ref(db, "cases");
+
+  // 📡 โหลดข้อมูล
+  onValue(dbRef, (snapshot) => {
+    const data = snapshot.val();
+
+    Object.values(markers).forEach(m => map.removeLayer(m));
+    markers = {};
+
+    for (let id in data) {
+      let c = data[id];
+
+      let iconColor = "blue";
+      if (c.type === "มีผู้ป่วยในบ้าน") iconColor = "red";
+      else if (c.type === "ต้องการอาหาร") iconColor = "yellow";
+      else if (c.type === "ต้องการอพยพ") iconColor = "green";
+
+      // ✅ ถ้ายืนยันแล้ว → ใช้ไอคอนติ๊กถูก
+      if (c.verified) {
+        iconColor = "green";
+      }
+
+      let icon = L.icon({
+        iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${iconColor}.png`,
+        shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+        iconSize: [25, 41],
+        iconAnchor: [12, 41]
+      });
+
+      let marker = L.marker([c.lat, c.lng], { icon }).addTo(map);
+
+      marker.bindPopup(`
+        🚨 ${c.type}<br>
+        📞 ${c.phone || "-"}<br>
+        👤 ${c.assignedName || "ยังไม่รับเคส"}<br>
+        📊 สถานะ: ${c.status || "ยังไม่รับเคส"}<br>
+        ${c.verified ? "✅ ยืนยันแล้ว" : "❌ ยังไม่ยืนยัน"}<br><br>
+
+        <button onclick="window.verifyCase('${id}')">✅ ยืนยัน</button>
+        <button onclick="window.setStatus('${id}', 'กำลังไป')">กำลังไป</button>
+        <button onclick="window.setStatus('${id}', 'ช่วยเหลือเสร็จสิ้น')">เสร็จสิ้น</button>
+        <button onclick="window.deleteCase('${id}')">🗑 ลบเคส</button>
+      `);
+
+      markers[id] = marker;
+    }
+  });
+
+  // 📍 เพิ่มเคส (admin ก็เพิ่มได้)
+  map.on('click', (e) => {
+
+    let phone = document.getElementById("phone").value;
+
+    if (!phone || phone.length < 9) {
+      alert("❌ เบอร์โทรไม่ถูกต้อง");
+      return;
+    }
+
+    let type = document.getElementById("caseType").value;
+
+    if (!confirm(`ยืนยันสร้างเคส "${type}" ใช่หรือไม่?`)) return;
+
+    push(dbRef, {
+      lat: e.latlng.lat,
+      lng: e.latlng.lng,
+      type: type,
+      phone: phone,
+      assignedName: "",
+      status: "ยังไม่รับเคส",
+      verified: false
+    });
+
+  });
+
+  // ✅ ยืนยันหมุด
+  window.verifyCase = function(id) {
+    update(ref(db, "cases/" + id), {
+      verified: true
+    });
+  };
+
+  // 📊 อัพเดตสถานะ
+  window.setStatus = function(id, status) {
+    update(ref(db, "cases/" + id), { status });
+  };
+
+  // 🗑 แอดมินลบได้ทุกเคส
+  window.deleteCase = function(id) {
+    if (confirm("ลบเคสนี้ใช่หรือไม่?")) {
+      remove(ref(db, "cases/" + id));
+    }
+  };
+
+</script>
+
+</body>
+</html>
