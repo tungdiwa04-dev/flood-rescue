@@ -37,6 +37,23 @@
     #sidebar.open { left:0; }
 
     input,select { width:100%; padding:8px; margin:5px 0; }
+
+    /* 🔍 search box */
+    #searchBox {
+      position:absolute;
+      top:10px;
+      right:10px;
+      z-index:1001;
+      background:#fff;
+      padding:10px;
+      border-radius:8px;
+      box-shadow:0 0 5px rgba(0,0,0,0.2);
+    }
+
+    #searchBox input {
+      width:140px;
+      padding:5px;
+    }
   </style>
 </head>
 
@@ -60,8 +77,14 @@
   <hr>
 
   <button onclick="window.location.href='./login.html'">
-  เข้าสู่ระบบอาสา
-</button>
+    เข้าสู่ระบบอาสา
+  </button>
+</div>
+
+<!-- 🔍 กล่องค้นหา -->
+<div id="searchBox">
+  <input type="text" id="coordInput" placeholder="พิกัด">
+  <button onclick="goToCoords()">ไป</button>
 </div>
 
 <div id="map"></div>
@@ -101,6 +124,21 @@ document.getElementById("menuBtn").onclick=()=>{
   document.getElementById("sidebar").classList.toggle("open");
 };
 
+/* 🔍 ค้นหาพิกัด */
+window.goToCoords = function() {
+  let val = document.getElementById("coordInput").value.trim();
+  if (!val.includes(",")) return alert("รูปแบบไม่ถูกต้อง");
+
+  let [lat, lng] = val.split(",").map(Number);
+
+  if (isNaN(lat) || isNaN(lng)) {
+    alert("พิกัดไม่ถูกต้อง");
+    return;
+  }
+
+  map.setView([lat, lng], 15);
+};
+
 /* load cases */
 onValue(dbRef,snap=>{
   const data = snap.val()||{};
@@ -110,6 +148,96 @@ onValue(dbRef,snap=>{
 
   for(let id in data){
     let c=data[id];
+
+    let color="blue";
+    if(c.type==="มีผู้ป่วยในบ้าน")color="red";
+    if(c.type==="ต้องการอาหาร")color="yellow";
+    if(c.type==="ต้องการอพยพ")color="green";
+
+    let icon=L.icon({
+      iconUrl:`https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+      shadowUrl:"https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+      iconSize:[25,41],
+      iconAnchor:[12,41]
+    });
+
+    let m=L.marker([c.lat,c.lng],{icon}).addTo(map);
+
+    m.bindPopup(`
+      🚨 ${c.type}<br>
+      📞 ${c.phone}<br>
+      👤 ${c.assignedName||"ยังไม่รับเคส"}<br>
+      📊 ${c.status}<br><br>
+
+      ${!c.assignedName ? `
+        <button onclick="takeCase('${id}')">🚑 รับเคส</button>
+      ` : `
+        ${c.rescuerId===clientId ? `
+          <button onclick="setStatus('${id}','กำลังไป')">🚗 กำลังไป</button>
+          <button onclick="setStatus('${id}','ช่วยเหลือเสร็จสิ้น')">✅ เสร็จสิ้น</button>
+        ` : `
+          <span>🔒 รับแล้ว</span>
+        `}
+      `}
+
+      ${
+        (c.createdBy===clientId || c.rescuerId===clientId || c.status==="ช่วยเหลือเสร็จสิ้น")
+        ? `<br><button onclick="deleteCase('${id}')">🗑 ลบเคส</button>`
+        : ""
+      }
+    `);
+
+    markers[id]=m;
+  }
+});
+
+/* create case */
+map.on("click",e=>{
+  let phone=document.getElementById("phone").value;
+  if(phone.length<9)return alert("เบอร์ไม่ถูกต้อง");
+
+  if(!confirm("ยืนยันสร้างเคส?"))return;
+
+  push(dbRef,{
+    lat:e.latlng.lat,
+    lng:e.latlng.lng,
+    type:document.getElementById("caseType").value,
+    phone,
+    status:"ยังไม่รับเคส",
+    assignedName:"",
+    createdBy:clientId,
+    rescuerId:""
+  });
+});
+
+/* take case */
+window.takeCase=function(id){
+  let idCard=prompt("เลขอาสา");
+  if(!idCard||!/^\d{3,}$/.test(idCard))return alert("เลขอาสาผิด");
+
+  let name=prompt("ชื่อ");
+  if(!name||/\d/.test(name))return alert("ชื่อห้ามมีเลข");
+
+  let org=prompt("มูลนิธิ");
+  if(!org||/\d/.test(org))return alert("มูลนิธิห้ามมีเลข");
+
+  update(ref(db,"cases/"+id),{
+    assignedName:`${name} (${org}) #${idCard}`,
+    status:"กำลังไป",
+    rescuerId:idCard
+  });
+};
+
+/* status */
+window.setStatus=(id,s)=>update(ref(db,"cases/"+id),{status:s});
+
+/* delete */
+window.deleteCase=id=>remove(ref(db,"cases/"+id));
+
+</script>
+
+</body>
+</html>    let c=data[id];
 
     let color="blue";
     if(c.type==="มีผู้ป่วยในบ้าน")color="red";
