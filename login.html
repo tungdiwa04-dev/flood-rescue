@@ -3,12 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <title>ล็อกอินอาสา</title>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
 <style>
-body { font-family: sans-serif; padding:20px; background:#f5f5f5; }
-input, button { margin:5px 0; padding:10px; width:100%; }
-.box { background:white; padding:15px; border-radius:10px; margin-bottom:20px; }
+body {
+  font-family:sans-serif;
+  padding:20px;
+  background:#f5f5f5;
+}
+
+input, button {
+  margin:5px 0;
+  padding:10px;
+  width:100%;
+}
+
+.box {
+  background:white;
+  padding:15px;
+  border-radius:10px;
+  margin-bottom:20px;
+}
 </style>
 </head>
 
@@ -18,15 +32,21 @@ input, button { margin:5px 0; padding:10px; width:100%; }
 
 <!-- ================= อาสา ================= -->
 <div class="box">
-<h3>ล็อกอินอาสา</h3>
+<h3>ส่งข้อมูลอาสา</h3>
 
 <input type="text" id="idCard" placeholder="เลขอาสา" required>
+
 <input type="text" id="foundation" placeholder="มูลนิธิ" required>
+
 <input type="text" id="area" placeholder="พื้นที่" required>
+
 <input type="text" id="name" placeholder="ชื่อ" required>
+
+<input type="text" id="callSign" placeholder="นามเรียกขาน" required>
+
 <input type="file" id="cardImage" accept="image/*" required>
 
-<button onclick="checkVolunteer()">เสร็จสิ้น</button>
+<button onclick="sendVolunteer()">ส่งข้อมูล</button>
 </div>
 
 <!-- ================= แอดมิน ================= -->
@@ -34,90 +54,118 @@ input, button { margin:5px 0; padding:10px; width:100%; }
 <h3>ล็อกอินแอดมิน</h3>
 
 <input type="text" id="adminUser" placeholder="ชื่อแอดมิน">
+
 <input type="password" id="adminPass" placeholder="รหัสผ่าน">
 
 <button onclick="loginAdmin()">เสร็จสิ้น</button>
 </div>
 
-<script>
+<script type="module">
 
-// ===== ตรวจภาพเบลอ =====
-function isImageBlurry(file) {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      canvas.width = img.width;
-      canvas.height = img.height;
-
-      ctx.drawImage(img, 0, 0);
-
-      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-
-      let diff = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        diff += Math.abs(data[i] - data[i + 1]);
-      }
-
-      const score = diff / (canvas.width * canvas.height);
-      resolve(score > 20); // ต่ำ = เบลอ
-    };
-  });
+import {
+  getDatabase,
+  ref,
+  push
 }
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// ===== OCR ตรวจข้อความ =====
-async function checkVolunteer() {
-  const idCard = document.getElementById("idCard").value.trim();
-  const foundation = document.getElementById("foundation").value.trim();
-  const area = document.getElementById("area").value.trim();
-  const name = document.getElementById("name").value.trim();
-  const file = document.getElementById("cardImage").files[0];
+/* firebase */
+const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "help-people-38dfd.firebaseapp.com",
+  databaseURL: "https://help-people-38dfd-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "help-people-38dfd"
+};
 
-  if (!idCard || !foundation || !area || !name || !file) {
-    alert("กรอกข้อมูลให้ครบก่อน");
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+/* ส่งข้อมูลอาสา */
+window.sendVolunteer = function() {
+
+  const idCard =
+    document.getElementById("idCard").value.trim();
+
+  const foundation =
+    document.getElementById("foundation").value.trim();
+
+  const area =
+    document.getElementById("area").value.trim();
+
+  const name =
+    document.getElementById("name").value.trim();
+
+  const callSign =
+    document.getElementById("callSign").value.trim();
+
+  const file =
+    document.getElementById("cardImage").files[0];
+
+  if (
+    !idCard ||
+    !foundation ||
+    !area ||
+    !name ||
+    !callSign ||
+    !file
+  ) {
+    alert("กรอกข้อมูลให้ครบ");
     return;
   }
 
-  // ตรวจภาพเบลอ
-  const clear = await isImageBlurry(file);
-  if (!clear) {
-    alert("❌ รูปเบลอเกินไป กรุณาอัปโหลดใหม่");
-    return;
-  }
+  const reader = new FileReader();
 
-  alert("กำลังตรวจสอบรูป...");
+  reader.onload = function() {
 
-  const result = await Tesseract.recognize(file, 'eng+tha');
-  const text = result.data.text;
+    push(ref(db, "verificationRequests"), {
 
-  if (!text.includes(idCard) ||
-      !text.includes(name) ||
-      !text.includes(area)) {
+      idCard,
+      foundation,
+      area,
+      name,
+      callSign,
 
-    alert("❌ ข้อมูลในรูปไม่ตรง");
-    return;
-  }
+      image: reader.result,
 
-  alert("✅ ผ่านการตรวจสอบ");
-  window.location.href = "index.html";
-}
+      status: "pending",
 
-// ===== ล็อกอินแอดมิน =====
-function loginAdmin() {
-  const user = document.getElementById("adminUser").value.trim();
-  const pass = document.getElementById("adminPass").value.trim();
+      time: Date.now()
 
-  if (user === "ADMIN" && pass === "16022554TTT") {
-    alert("เข้าสู่ระบบแอดมินสำเร็จ");
+    });
+
+    alert("ส่งข้อมูลเรียบร้อย รอแอดมินตรวจสอบ");
+
+    window.location.href = "index.html";
+  };
+
+  reader.readAsDataURL(file);
+};
+
+/* ล็อกอินแอดมิน */
+window.loginAdmin = function() {
+
+  const user =
+    document.getElementById("adminUser").value.trim();
+
+  const pass =
+    document.getElementById("adminPass").value.trim();
+
+  if (
+    user === "admin" &&
+    pass === "16022554TTT"
+  ) {
+
     window.location.href = "admin.html";
+
   } else {
+
     alert("❌ ชื่อหรือรหัสผ่านไม่ถูกต้อง");
+
   }
-}
+};
 
 </script>
 
