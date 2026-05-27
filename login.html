@@ -2,77 +2,63 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>ล็อกอินอาสา</title>
+<title>ระบบอาสา</title>
 
 <style>
 body {
-  font-family:sans-serif;
-  padding:20px;
-  background:#f5f5f5;
-}
-
-input, button {
-  margin:5px 0;
-  padding:10px;
-  width:100%;
+  font-family: sans-serif;
+  padding: 20px;
+  background: #f5f5f5;
 }
 
 .box {
-  background:white;
-  padding:15px;
-  border-radius:10px;
-  margin-bottom:20px;
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+input, button {
+  width: 100%;
+  padding: 10px;
+  margin: 5px 0;
 }
 </style>
 </head>
 
 <body>
 
-<h2>ระบบเข้าสู่ระบบ</h2>
+<h2>🚑 ระบบอาสา</h2>
 
 <!-- ================= อาสา ================= -->
 <div class="box">
-<h3>ส่งข้อมูลอาสา</h3>
+  <h3>ส่งข้อมูลอาสา</h3>
 
-<input type="text" id="idCard" placeholder="เลขอาสา" required>
+  <input id="idCard" placeholder="เลขอาสา">
+  <input id="foundation" placeholder="มูลนิธิ">
+  <input id="area" placeholder="พื้นที่">
+  <input id="name" placeholder="ชื่อ">
+  <input id="callSign" placeholder="นามเรียกขาน">
+  <input type="file" id="cardImage">
 
-<input type="text" id="foundation" placeholder="มูลนิธิ" required>
-
-<input type="text" id="area" placeholder="พื้นที่" required>
-
-<input type="text" id="name" placeholder="ชื่อ" required>
-
-<input type="text" id="callSign" placeholder="นามเรียกขาน" required>
-
-<input type="file" id="cardImage" accept="image/*" required>
-
-<button onclick="sendVolunteer()">ส่งข้อมูล</button>
+  <button onclick="sendVolunteer()">ส่งข้อมูล</button>
 </div>
 
 <!-- ================= แอดมิน ================= -->
 <div class="box">
-<h3>ล็อกอินแอดมิน</h3>
+  <h3>🛠 แอดมิน</h3>
 
-<input type="text" id="adminUser" placeholder="ชื่อแอดมิน">
+  <input id="adminUser" placeholder="ชื่อแอดมิน">
+  <input id="adminPass" type="password" placeholder="รหัสผ่าน">
 
-<input type="password" id="adminPass" placeholder="รหัสผ่าน">
-
-<button onclick="loginAdmin()">เสร็จสิ้น</button>
+  <button onclick="loginAdmin()">เข้าสู่แอดมิน</button>
 </div>
 
 <script type="module">
 
-import { initializeApp }
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-import {
-  getDatabase,
-  ref,
-  push
-}
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-/* firebase */
 const firebaseConfig = {
   apiKey: "AIzaSy...",
   authDomain: "help-people-38dfd.firebaseapp.com",
@@ -83,87 +69,47 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* ส่งข้อมูลอาสา */
-window.sendVolunteer = function() {
+/* ================= ส่งข้อมูลอาสา ================= */
+window.sendVolunteer = function () {
 
-  const idCard =
-    document.getElementById("idCard").value.trim();
-
-  const foundation =
-    document.getElementById("foundation").value.trim();
-
-  const area =
-    document.getElementById("area").value.trim();
-
-  const name =
-    document.getElementById("name").value.trim();
-
-  const callSign =
-    document.getElementById("callSign").value.trim();
-
-  const file =
-    document.getElementById("cardImage").files[0];
-
-  if (
-    !idCard ||
-    !foundation ||
-    !area ||
-    !name ||
-    !callSign ||
-    !file
-  ) {
-    alert("กรอกข้อมูลให้ครบ");
-    return;
-  }
+  const file = document.getElementById("cardImage").files[0];
+  if (!file) return alert("กรุณาใส่รูป");
 
   const reader = new FileReader();
 
-  reader.onload = function() {
+  reader.onload = function () {
 
     push(ref(db, "verificationRequests"), {
-
-      idCard,
-      foundation,
-      area,
-      name,
-      callSign,
-
+      idCard: idCard.value,
+      foundation: foundation.value,
+      area: area.value,
+      name: name.value,
+      callSign: callSign.value,
       image: reader.result,
-
       status: "pending",
-
+      verified: false,
       time: Date.now()
-
     });
 
-    alert("ส่งข้อมูลเรียบร้อย รอแอดมินตรวจสอบ");
-
-    window.location.href = "index.html";
+    alert("✔ ส่งข้อมูลแล้ว");
   };
 
   reader.readAsDataURL(file);
 };
 
-/* ล็อกอินแอดมิน */
-window.loginAdmin = function() {
+/* ================= login admin ================= */
+window.loginAdmin = function () {
 
-  const user =
-    document.getElementById("adminUser").value.trim();
+  const user = document.getElementById("adminUser").value.trim();
+  const pass = document.getElementById("adminPass").value.trim();
 
-  const pass =
-    document.getElementById("adminPass").value.trim();
+  if (user === "admin" && pass === "16022554TTT") {
 
-  if (
-    user === "admin" &&
-    pass === "16022554TTT"
-  ) {
-
+    // 🔥 เข้าหลังบ้าน
     window.location.href = "admin.html";
 
   } else {
-
-    alert("❌ ชื่อหรือรหัสผ่านไม่ถูกต้อง");
-
+    alert("❌ login ไม่ถูกต้อง");
   }
 };
 
