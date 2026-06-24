@@ -16,12 +16,29 @@ body {
   padding: 15px;
   border-radius: 10px;
   margin-bottom: 20px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-input, button {
+input,
+button {
   width: 100%;
   padding: 10px;
   margin: 5px 0;
+  box-sizing: border-box;
+}
+
+button {
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+button:hover {
+  opacity: 0.9;
 }
 </style>
 </head>
@@ -30,7 +47,6 @@ input, button {
 
 <h2>🚑 ระบบอาสา</h2>
 
-<!-- ================= อาสา ================= -->
 <div class="box">
   <h3>ส่งข้อมูลอาสา</h3>
 
@@ -41,17 +57,20 @@ input, button {
   <input id="callSign" placeholder="นามเรียกขาน">
   <input type="file" id="cardImage">
 
-  <button onclick="sendVolunteer()">ส่งข้อมูล</button>
+  <button type="button" onclick="sendVolunteer()">
+    ส่งข้อมูล
+  </button>
 </div>
 
-<!-- ================= แอดมิน ================= -->
 <div class="box">
   <h3>🛠 แอดมิน</h3>
 
   <input id="adminUser" placeholder="ชื่อแอดมิน">
   <input id="adminPass" type="password" placeholder="รหัสผ่าน">
 
-  <button onclick="loginAdmin()">เข้าสู่แอดมิน</button>
+  <button type="button" onclick="loginAdmin()">
+    เข้าสู่แอดมิน
+  </button>
 </div>
 
 <script type="module">
@@ -73,7 +92,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* ================= ส่งข้อมูลอาสา ================= */
 window.sendVolunteer = async function () {
 
   const file = document.getElementById("cardImage").files[0];
@@ -103,7 +121,6 @@ window.sendVolunteer = async function () {
 
       alert("✔ ส่งข้อมูลสำเร็จ");
 
-      // ไปหน้า control.html
       window.location.href = "control.html";
 
     } catch (error) {
@@ -118,7 +135,6 @@ window.sendVolunteer = async function () {
   reader.readAsDataURL(file);
 };
 
-/* ================= login admin ================= */
 window.loginAdmin = function () {
 
   const user = document.getElementById("adminUser").value.trim();
@@ -132,13 +148,6 @@ window.loginAdmin = function () {
 
     alert("❌ login ไม่ถูกต้อง");
 
-  }
-};
-
-</script>
-
-</body>
-</html>    alert("❌ login ไม่ถูกต้อง");
   }
 };
 
