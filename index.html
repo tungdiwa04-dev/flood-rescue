@@ -8,35 +8,90 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
   <style>
-    body { margin:0; font-family:sans-serif; }
-    #map { height:100vh; width:100%; }
+    body {
+      margin: 0;
+      font-family: sans-serif;
+    }
+
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
 
     #menuBtn {
-      position:absolute;
-      top:10px; left:10px;
-      z-index:1001;
-      background:#fff;
-      border:none;
-      padding:10px;
-      font-size:20px;
-      border-radius:8px;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1001;
+      background: #fff;
+      border: none;
+      padding: 10px;
+      font-size: 20px;
+      border-radius: 8px;
     }
 
     #sidebar {
-      position:absolute;
-      top:0; left:-280px;
-      width:260px;
-      height:100%;
-      background:#fff;
-      padding:15px;
-      z-index:1000;
-      transition:0.3s;
-      box-shadow:2px 0 10px rgba(0,0,0,0.2);
+      position: absolute;
+      top: 0;
+      left: -280px;
+      width: 260px;
+      height: 100%;
+      background: #fff;
+      padding: 15px;
+      z-index: 1000;
+      transition: 0.3s;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+      box-sizing: border-box;
     }
 
-    #sidebar.open { left:0; }
+    #sidebar.open {
+      left: 0;
+    }
 
-    input,select { width:100%; padding:8px; margin:5px 0; }
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      box-sizing: border-box;
+      font-family: sans-serif;
+    }
+
+    textarea {
+      height: 80px;
+      resize: vertical;
+    }
+
+    #searchBox {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1001;
+      background: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.2);
+    }
+
+    #searchBox input {
+      width: 140px;
+      padding: 5px;
+    }
+
+    .mapButton {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: #4285F4;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+    }
+
+    .mapButton:hover {
+      opacity: 0.85;
+    }
   </style>
 </head>
 
@@ -45,6 +100,7 @@
 <button id="menuBtn">☰</button>
 
 <div id="sidebar">
+
   <h3>เมนู</h3>
 
   <select id="caseType">
@@ -53,15 +109,34 @@
     <option value="ต้องการอาหาร">ต้องการอาหาร</option>
   </select>
 
-  <input id="phone" placeholder="เบอร์โทร"
+  <input
+    id="phone"
+    placeholder="เบอร์โทร"
     inputmode="numeric"
-    oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
+    oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+  >
+
+  <textarea
+    id="note"
+    placeholder="หมายเหตุ เช่น มีผู้สูงอายุ น้ำสูงประมาณ 50 ซม."
+  ></textarea>
 
   <hr>
 
   <button onclick="window.location.href='./login.html'">
-  เข้าสู่ระบบอาสา
-</button>
+    เข้าสู่ระบบอาสา
+  </button>
+
+</div>
+
+<!-- ค้นหาพิกัด -->
+<div id="searchBox">
+  <input
+    type="text"
+    id="coordInput"
+    placeholder="พิกัด เช่น 8.43,99.96"
+  >
+  <button onclick="goToCoords()">ไป</button>
 </div>
 
 <div id="map"></div>
@@ -69,9 +144,24 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, push, onValue, update, remove }
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+import {
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+
+import {
+  getDatabase,
+  ref,
+  push,
+  onValue,
+  update,
+  remove
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+
+/* =========================
+   FIREBASE
+========================= */
 
 const firebaseConfig = {
   apiKey: "AIzaSy...",
@@ -83,118 +173,530 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-const map = L.map("map").setView([13.75,100.5],6);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+
+/* =========================
+   MAP
+========================= */
+
+const map = L.map("map").setView(
+  [13.75, 100.5],
+  6
+);
+
+L.tileLayer(
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+).addTo(map);
+
+
+/* =========================
+   VARIABLES
+========================= */
 
 let markers = {};
-const dbRef = ref(db,"cases");
 
-/* client id */
-let clientId = localStorage.getItem("cid");
-if(!clientId){
-  clientId = crypto.randomUUID();
-  localStorage.setItem("cid",clientId);
+const dbRef = ref(db, "cases");
+
+
+/* =========================
+   CLIENT ID
+========================= */
+
+let clientId =
+  localStorage.getItem("cid");
+
+if (!clientId) {
+
+  clientId =
+    crypto.randomUUID();
+
+  localStorage.setItem(
+    "cid",
+    clientId
+  );
+
 }
 
-/* menu */
-document.getElementById("menuBtn").onclick=()=>{
-  document.getElementById("sidebar").classList.toggle("open");
+
+/* =========================
+   MENU
+========================= */
+
+document
+  .getElementById("menuBtn")
+  .onclick = () => {
+
+    document
+      .getElementById("sidebar")
+      .classList
+      .toggle("open");
+
+  };
+
+
+/* =========================
+   SEARCH COORDINATES
+========================= */
+
+window.goToCoords = function () {
+
+  let val =
+    document
+      .getElementById("coordInput")
+      .value
+      .trim();
+
+  if (!val.includes(",")) {
+
+    return alert(
+      "รูปแบบไม่ถูกต้อง\nตัวอย่าง: 8.43,99.96"
+    );
+
+  }
+
+  let [lat, lng] =
+    val
+      .split(",")
+      .map(Number);
+
+  if (
+    isNaN(lat) ||
+    isNaN(lng)
+  ) {
+
+    return alert(
+      "พิกัดไม่ถูกต้อง"
+    );
+
+  }
+
+  map.setView(
+    [lat, lng],
+    15
+  );
+
 };
 
-/* load cases */
-onValue(dbRef,snap=>{
-  const data = snap.val()||{};
 
-  Object.values(markers).forEach(m=>map.removeLayer(m));
-  markers={};
+/* =========================
+   LOAD CASES
+========================= */
 
-  for(let id in data){
-    let c=data[id];
+onValue(dbRef, snap => {
 
-    let color="blue";
-    if(c.type==="มีผู้ป่วยในบ้าน")color="red";
-    if(c.type==="ต้องการอาหาร")color="yellow";
-    if(c.type==="ต้องการอพยพ")color="green";
+  const data =
+    snap.val() || {};
 
-    let icon=L.icon({
-      iconUrl:`https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-      shadowUrl:"https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-      iconSize:[25,41],
-      iconAnchor:[12,41]
+
+  /* ลบหมุดเดิม */
+
+  Object
+    .values(markers)
+    .forEach(marker => {
+
+      map.removeLayer(marker);
+
     });
 
-    let m=L.marker([c.lat,c.lng],{icon}).addTo(map);
+  markers = {};
+
+
+  /* สร้างหมุด */
+
+  for (let id in data) {
+
+    let c = data[id];
+
+
+    /* สีหมุด */
+
+    let color = "blue";
+
+    if (
+      c.type === "มีผู้ป่วยในบ้าน"
+    ) {
+      color = "red";
+    }
+
+    if (
+      c.type === "ต้องการอาหาร"
+    ) {
+      color = "yellow";
+    }
+
+    if (
+      c.type === "ต้องการอพยพ"
+    ) {
+      color = "green";
+    }
+
+
+    /* Icon */
+
+    let icon = L.icon({
+
+      iconUrl:
+        `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+
+      shadowUrl:
+        "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+
+      iconSize: [
+        25,
+        41
+      ],
+
+      iconAnchor: [
+        12,
+        41
+      ]
+
+    });
+
+
+    /* Marker */
+
+    let m =
+      L.marker(
+        [c.lat, c.lng],
+        { icon }
+      ).addTo(map);
+
+
+    /* =========================
+       GOOGLE MAPS LINK
+    ========================= */
+
+    const googleMapsUrl =
+      `https://www.google.com/maps?q=${c.lat},${c.lng}`;
+
+
+    /* =========================
+       POPUP
+    ========================= */
 
     m.bindPopup(`
-      🚨 ${c.type}<br>
-      📞 ${c.phone}<br>
-      👤 ${c.assignedName||"ยังไม่รับเคส"}<br>
-      📊 ${c.status}<br><br>
 
-      ${!c.assignedName ? `
-        <button onclick="takeCase('${id}')">🚑 รับเคส</button>
-      ` : `
-        ${c.rescuerId===clientId ? `
-          <button onclick="setStatus('${id}','กำลังไป')">🚗 กำลังไป</button>
-          <button onclick="setStatus('${id}','ช่วยเหลือเสร็จสิ้น')">✅ เสร็จสิ้น</button>
-        ` : `
-          <span>🔒 รับแล้ว</span>
-        `}
-      `}
+      <b>🚨 ${c.type}</b>
+      <br><br>
+
+      📞 เบอร์โทร:
+      ${c.phone || "ไม่มี"}
+      <br>
+
+      📝 หมายเหตุ:
+      ${c.note || "ไม่มี"}
+      <br><br>
+
+      👤 อาสาที่รับ:
+      ${c.assignedName || "ยังไม่รับเคส"}
+      <br>
+
+      📊 สถานะ:
+      ${c.status || "ยังไม่รับเคส"}
+
+      <br><br>
+
 
       ${
-        (c.createdBy===clientId || c.rescuerId===clientId || c.status==="ช่วยเหลือเสร็จสิ้น")
-        ? `<br><button onclick="deleteCase('${id}')">🗑 ลบเคส</button>`
+        !c.assignedName
+
+        ? `
+
+          <button
+            onclick="takeCase('${id}')"
+          >
+            🚑 รับเคส
+          </button>
+
+        `
+
+        : `
+
+          ${
+            c.rescuerId === clientId
+
+            ? `
+
+              <button
+                onclick="setStatus(
+                  '${id}',
+                  'กำลังไป'
+                )"
+              >
+                🚗 กำลังไป
+              </button>
+
+              <button
+                onclick="setStatus(
+                  '${id}',
+                  'ช่วยเหลือเสร็จสิ้น'
+                )"
+              >
+                ✅ เสร็จสิ้น
+              </button>
+
+            `
+
+            : `
+
+              <span>
+                🔒 เคสนี้มีอาสารับแล้ว
+              </span>
+
+            `
+          }
+
+        `
+      }
+
+
+      <br>
+
+
+      <!-- GOOGLE MAPS -->
+
+      <a
+        href="${googleMapsUrl}"
+        target="_blank"
+        class="mapButton"
+      >
+        📍 เปิด Google Maps
+      </a>
+
+
+      <br><br>
+
+
+      ${
+        (
+          c.createdBy === clientId ||
+          c.rescuerId === clientId ||
+          c.status === "ช่วยเหลือเสร็จสิ้น"
+        )
+
+        ? `
+
+          <button
+            onclick="deleteCase('${id}')"
+          >
+            🗑 ลบเคส
+          </button>
+
+        `
+
         : ""
       }
+
     `);
 
-    markers[id]=m;
+
+    markers[id] = m;
+
   }
+
 });
 
-/* create case */
-map.on("click",e=>{
-  let phone=document.getElementById("phone").value;
-  if(phone.length<9)return alert("เบอร์ไม่ถูกต้อง");
 
-  if(!confirm("ยืนยันสร้างเคส?"))return;
+/* =========================
+   CREATE CASE
+========================= */
 
-  push(dbRef,{
-    lat:e.latlng.lat,
-    lng:e.latlng.lng,
-    type:document.getElementById("caseType").value,
-    phone,
-    status:"ยังไม่รับเคส",
-    assignedName:"",
-    createdBy:clientId,
-    rescuerId:""
+map.on("click", e => {
+
+  let phone =
+    document
+      .getElementById("phone")
+      .value;
+
+  let note =
+    document
+      .getElementById("note")
+      .value
+      .trim();
+
+
+  if (phone.length < 9) {
+
+    return alert(
+      "เบอร์ไม่ถูกต้อง"
+    );
+
+  }
+
+
+  if (
+    !confirm(
+      "ยืนยันสร้างเคส?"
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  push(dbRef, {
+
+    lat:
+      e.latlng.lat,
+
+    lng:
+      e.latlng.lng,
+
+    type:
+      document
+        .getElementById("caseType")
+        .value,
+
+    phone:
+      phone,
+
+    note:
+      note,
+
+    status:
+      "ยังไม่รับเคส",
+
+    assignedName:
+      "",
+
+    createdBy:
+      clientId,
+
+    rescuerId:
+      ""
+
   });
+
+
+  /* ล้างช่องหมายเหตุ */
+
+  document
+    .getElementById("note")
+    .value = "";
+
 });
 
-/* take case */
-window.takeCase=function(id){
-  let idCard=prompt("เลขอาสา");
-  if(!idCard||!/^\d{3,}$/.test(idCard))return alert("เลขอาสาผิด");
 
-  let name=prompt("ชื่อ");
-  if(!name||/\d/.test(name))return alert("ชื่อห้ามมีเลข");
+/* =========================
+   TAKE CASE
+========================= */
 
-  let org=prompt("มูลนิธิ");
-  if(!org||/\d/.test(org))return alert("มูลนิธิห้ามมีเลข");
+window.takeCase = function (id) {
 
-  update(ref(db,"cases/"+id),{
-    assignedName:`${name} (${org}) #${idCard}`,
-    status:"กำลังไป",
-    rescuerId:idCard
-  });
+  let idCard =
+    prompt("เลขอาสา");
+
+  if (
+    !idCard ||
+    !/^\d{3,}$/.test(idCard)
+  ) {
+
+    return alert(
+      "เลขอาสาผิด"
+    );
+
+  }
+
+
+  let name =
+    prompt("ชื่อ");
+
+  if (
+    !name ||
+    /\d/.test(name)
+  ) {
+
+    return alert(
+      "ชื่อห้ามมีเลข"
+    );
+
+  }
+
+
+  let org =
+    prompt("มูลนิธิ");
+
+  if (
+    !org ||
+    /\d/.test(org)
+  ) {
+
+    return alert(
+      "มูลนิธิห้ามมีเลข"
+    );
+
+  }
+
+
+  update(
+    ref(
+      db,
+      "cases/" + id
+    ),
+    {
+
+      assignedName:
+        `${name} (${org}) #${idCard}`,
+
+      status:
+        "กำลังไป",
+
+      rescuerId:
+        idCard
+
+    }
+  );
+
 };
 
-/* status */
-window.setStatus=(id,s)=>update(ref(db,"cases/"+id),{status:s});
 
-/* delete */
-window.deleteCase=id=>remove(ref(db,"cases/"+id));
+/* =========================
+   STATUS
+========================= */
+
+window.setStatus = function (
+  id,
+  status
+) {
+
+  update(
+    ref(
+      db,
+      "cases/" + id
+    ),
+    {
+      status
+    }
+  );
+
+};
+
+
+/* =========================
+   DELETE CASE
+========================= */
+
+window.deleteCase = function (id) {
+
+  if (
+    !confirm(
+      "ต้องการลบเคสนี้ใช่หรือไม่?"
+    )
+  ) {
+
+    return;
+
+  }
+
+  remove(
+    ref(
+      db,
+      "cases/" + id
+    )
+  );
+
+};
 
 </script>
 
