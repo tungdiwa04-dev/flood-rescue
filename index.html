@@ -87,6 +87,7 @@
       color: white;
       text-decoration: none;
       border-radius: 6px;
+      font-size: 14px;
     }
 
     .mapButton:hover {
@@ -131,12 +132,17 @@
 
 <!-- ค้นหาพิกัด -->
 <div id="searchBox">
+
   <input
     type="text"
     id="coordInput"
     placeholder="พิกัด เช่น 8.43,99.96"
   >
-  <button onclick="goToCoords()">ไป</button>
+
+  <button onclick="goToCoords()">
+    ไป
+  </button>
+
 </div>
 
 <div id="map"></div>
@@ -164,24 +170,36 @@ import {
 ========================= */
 
 const firebaseConfig = {
+
   apiKey: "AIzaSy...",
-  authDomain: "help-people-38dfd.firebaseapp.com",
-  databaseURL: "https://help-people-38dfd-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "help-people-38dfd"
+
+  authDomain:
+    "help-people-38dfd.firebaseapp.com",
+
+  databaseURL:
+    "https://help-people-38dfd-default-rtdb.asia-southeast1.firebasedatabase.app",
+
+  projectId:
+    "help-people-38dfd"
+
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+const app =
+  initializeApp(firebaseConfig);
+
+const db =
+  getDatabase(app);
 
 
 /* =========================
    MAP
 ========================= */
 
-const map = L.map("map").setView(
-  [13.75, 100.5],
-  6
-);
+const map =
+  L.map("map").setView(
+    [13.75, 100.5],
+    6
+  );
 
 L.tileLayer(
   "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -194,7 +212,8 @@ L.tileLayer(
 
 let markers = {};
 
-const dbRef = ref(db, "cases");
+const dbRef =
+  ref(db, "cases");
 
 
 /* =========================
@@ -237,13 +256,15 @@ document
    SEARCH COORDINATES
 ========================= */
 
-window.goToCoords = function () {
+window.goToCoords =
+function () {
 
   let val =
     document
       .getElementById("coordInput")
       .value
       .trim();
+
 
   if (!val.includes(",")) {
 
@@ -253,10 +274,12 @@ window.goToCoords = function () {
 
   }
 
+
   let [lat, lng] =
     val
       .split(",")
       .map(Number);
+
 
   if (
     isNaN(lat) ||
@@ -268,6 +291,7 @@ window.goToCoords = function () {
     );
 
   }
+
 
   map.setView(
     [lat, lng],
@@ -281,381 +305,340 @@ window.goToCoords = function () {
    LOAD CASES
 ========================= */
 
-onValue(dbRef, snap => {
+onValue(
+  dbRef,
+  snap => {
 
-  const data =
-    snap.val() || {};
-
-
-  /* ลบหมุดเดิม */
-
-  Object
-    .values(markers)
-    .forEach(marker => {
-
-      map.removeLayer(marker);
-
-    });
-
-  markers = {};
+    const data =
+      snap.val() || {};
 
 
-  /* สร้างหมุด */
+    /* ลบหมุดเก่า */
 
-  for (let id in data) {
+    Object
+      .values(markers)
+      .forEach(marker => {
 
-    let c = data[id];
+        map.removeLayer(
+          marker
+        );
 
-
-    /* สีหมุด */
-
-    let color = "blue";
-
-    if (
-      c.type === "มีผู้ป่วยในบ้าน"
-    ) {
-      color = "red";
-    }
-
-    if (
-      c.type === "ต้องการอาหาร"
-    ) {
-      color = "yellow";
-    }
-
-    if (
-      c.type === "ต้องการอพยพ"
-    ) {
-      color = "green";
-    }
+      });
 
 
-    /* Icon */
-
-    let icon = L.icon({
-
-      iconUrl:
-        `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-
-      shadowUrl:
-        "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-
-      iconSize: [
-        25,
-        41
-      ],
-
-      iconAnchor: [
-        12,
-        41
-      ]
-
-    });
+    markers = {};
 
 
-    /* Marker */
+    /* สร้างหมุด */
 
-    let m =
-      L.marker(
-        [c.lat, c.lng],
-        { icon }
-      ).addTo(map);
+    for (let id in data) {
 
-
-    /* =========================
-       GOOGLE MAPS LINK
-    ========================= */
-
-    const googleMapsUrl =
-      `https://www.google.com/maps?q=${c.lat},${c.lng}`;
+      let c =
+        data[id];
 
 
-    /* =========================
-       POPUP
-    ========================= */
+      /* =====================
+         MARKER COLOR
+      ===================== */
 
-    m.bindPopup(`
-
-      <b>🚨 ${c.type}</b>
-      <br><br>
-
-      📞 เบอร์โทร:
-      ${c.phone || "ไม่มี"}
-      <br>
-
-      📝 หมายเหตุ:
-      ${c.note || "ไม่มี"}
-      <br><br>
-
-      👤 อาสาที่รับ:
-      ${c.assignedName || "ยังไม่รับเคส"}
-      <br>
-
-      📊 สถานะ:
-      ${c.status || "ยังไม่รับเคส"}
-
-      <br><br>
+      let color =
+        "blue";
 
 
-      ${
-        !c.assignedName
+      if (
+        c.type ===
+        "มีผู้ป่วยในบ้าน"
+      ) {
 
-        ? `
+        color = "red";
 
-          <button
-            onclick="takeCase('${id}')"
-          >
-            🚑 รับเคส
-          </button>
+      }
 
-        `
 
-        : `
+      if (
+        c.type ===
+        "ต้องการอาหาร"
+      ) {
 
-          ${
-            c.rescuerId === clientId
+        color = "yellow";
 
-            ? `
+      }
 
-              <button
-                onclick="setStatus(
+
+      if (
+        c.type ===
+        "ต้องการอพยพ"
+      ) {
+
+        color = "green";
+
+      }
+
+
+      /* =====================
+         ICON
+      ===================== */
+
+      let icon =
+        L.icon({
+
+          iconUrl:
+            `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+
+          shadowUrl:
+            "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+
+          iconSize:
+            [25, 41],
+
+          iconAnchor:
+            [12, 41]
+
+        });
+
+
+      /* =====================
+         MARKER
+      ===================== */
+
+      let marker =
+        L.marker(
+          [c.lat, c.lng],
+          { icon }
+        ).addTo(map);
+
+
+      /* =====================
+         GOOGLE MAPS
+      ===================== */
+
+      const googleMapsURL =
+        `https://www.google.com/maps?q=${c.lat},${c.lng}`;
+
+
+      /* =====================
+         POPUP
+      ===================== */
+
+      marker.bindPopup(`
+
+        <b>
+          🚨 ${c.type}
+        </b>
+
+        <br><br>
+
+        📞 เบอร์โทร:
+        ${c.phone || "ไม่มี"}
+
+        <br>
+
+        📝 หมายเหตุ:
+        ${c.note || "ไม่มี"}
+
+        <br>
+
+        👤 อาสาที่รับ:
+        ${c.assignedName || "ยังไม่มี"}
+
+        <br>
+
+        📊 สถานะ:
+        ${c.status || "ยังไม่ดำเนินการ"}
+
+        <br><br>
+
+
+        <!-- GOOGLE MAPS -->
+
+        <a
+          href="${googleMapsURL}"
+          target="_blank"
+          class="mapButton"
+        >
+          📍 เปิด Google Maps
+        </a>
+
+
+        <br><br>
+
+
+        <!-- สถานะ -->
+
+        ${
+          c.rescuerId === clientId
+
+          ? `
+
+            <button
+              onclick="
+                setStatus(
                   '${id}',
                   'กำลังไป'
-                )"
-              >
-                🚗 กำลังไป
-              </button>
+                )
+              "
+            >
+              🚗 กำลังไป
+            </button>
 
-              <button
-                onclick="setStatus(
+            <button
+              onclick="
+                setStatus(
                   '${id}',
                   'ช่วยเหลือเสร็จสิ้น'
-                )"
-              >
-                ✅ เสร็จสิ้น
-              </button>
+                )
+              "
+            >
+              ✅ เสร็จสิ้น
+            </button>
 
-            `
+          `
 
-            : `
-
-              <span>
-                🔒 เคสนี้มีอาสารับแล้ว
-              </span>
-
-            `
-          }
-
-        `
-      }
+          : ""
+        }
 
 
-      <br>
+        ${
+          (
+            c.createdBy === clientId ||
+            c.rescuerId === clientId ||
+            c.status ===
+              "ช่วยเหลือเสร็จสิ้น"
+          )
+
+          ? `
+
+            <br><br>
+
+            <button
+              onclick="
+                deleteCase('${id}')
+              "
+            >
+              🗑 ลบเคส
+            </button>
+
+          `
+
+          : ""
+        }
+
+      `);
 
 
-      <!-- GOOGLE MAPS -->
+      markers[id] =
+        marker;
 
-      <a
-        href="${googleMapsUrl}"
-        target="_blank"
-        class="mapButton"
-      >
-        📍 เปิด Google Maps
-      </a>
-
-
-      <br><br>
-
-
-      ${
-        (
-          c.createdBy === clientId ||
-          c.rescuerId === clientId ||
-          c.status === "ช่วยเหลือเสร็จสิ้น"
-        )
-
-        ? `
-
-          <button
-            onclick="deleteCase('${id}')"
-          >
-            🗑 ลบเคส
-          </button>
-
-        `
-
-        : ""
-      }
-
-    `);
-
-
-    markers[id] = m;
+    }
 
   }
-
-});
+);
 
 
 /* =========================
    CREATE CASE
 ========================= */
 
-map.on("click", e => {
+map.on(
+  "click",
+  e => {
 
-  let phone =
-    document
-      .getElementById("phone")
-      .value;
-
-  let note =
-    document
-      .getElementById("note")
-      .value
-      .trim();
-
-
-  if (phone.length < 9) {
-
-    return alert(
-      "เบอร์ไม่ถูกต้อง"
-    );
-
-  }
-
-
-  if (
-    !confirm(
-      "ยืนยันสร้างเคส?"
-    )
-  ) {
-
-    return;
-
-  }
-
-
-  push(dbRef, {
-
-    lat:
-      e.latlng.lat,
-
-    lng:
-      e.latlng.lng,
-
-    type:
+    let phone =
       document
-        .getElementById("caseType")
-        .value,
-
-    phone:
-      phone,
-
-    note:
-      note,
-
-    status:
-      "ยังไม่รับเคส",
-
-    assignedName:
-      "",
-
-    createdBy:
-      clientId,
-
-    rescuerId:
-      ""
-
-  });
+        .getElementById("phone")
+        .value;
 
 
-  /* ล้างช่องหมายเหตุ */
-
-  document
-    .getElementById("note")
-    .value = "";
-
-});
+    let note =
+      document
+        .getElementById("note")
+        .value
+        .trim();
 
 
-/* =========================
-   TAKE CASE
-========================= */
+    /* ตรวจสอบเบอร์ */
 
-window.takeCase = function (id) {
+    if (
+      phone.length < 9
+    ) {
 
-  let idCard =
-    prompt("เลขอาสา");
-
-  if (
-    !idCard ||
-    !/^\d{3,}$/.test(idCard)
-  ) {
-
-    return alert(
-      "เลขอาสาผิด"
-    );
-
-  }
-
-
-  let name =
-    prompt("ชื่อ");
-
-  if (
-    !name ||
-    /\d/.test(name)
-  ) {
-
-    return alert(
-      "ชื่อห้ามมีเลข"
-    );
-
-  }
-
-
-  let org =
-    prompt("มูลนิธิ");
-
-  if (
-    !org ||
-    /\d/.test(org)
-  ) {
-
-    return alert(
-      "มูลนิธิห้ามมีเลข"
-    );
-
-  }
-
-
-  update(
-    ref(
-      db,
-      "cases/" + id
-    ),
-    {
-
-      assignedName:
-        `${name} (${org}) #${idCard}`,
-
-      status:
-        "กำลังไป",
-
-      rescuerId:
-        idCard
+      return alert(
+        "เบอร์ไม่ถูกต้อง"
+      );
 
     }
-  );
 
-};
+
+    /* ยืนยัน */
+
+    if (
+      !confirm(
+        "ยืนยันสร้างเคส?"
+      )
+    ) {
+
+      return;
+
+    }
+
+
+    /* บันทึก Firebase */
+
+    push(
+      dbRef,
+      {
+
+        lat:
+          e.latlng.lat,
+
+        lng:
+          e.latlng.lng,
+
+        type:
+          document
+            .getElementById(
+              "caseType"
+            )
+            .value,
+
+        phone:
+          phone,
+
+        note:
+          note,
+
+        status:
+          "ยังไม่ดำเนินการ",
+
+        assignedName:
+          "",
+
+        createdBy:
+          clientId,
+
+        rescuerId:
+          ""
+
+      }
+    );
+
+
+    /* ล้างหมายเหตุ */
+
+    document
+      .getElementById("note")
+      .value = "";
+
+  }
+);
 
 
 /* =========================
    STATUS
 ========================= */
 
-window.setStatus = function (
+window.setStatus =
+function (
   id,
   status
 ) {
@@ -666,7 +649,10 @@ window.setStatus = function (
       "cases/" + id
     ),
     {
-      status
+
+      status:
+        status
+
     }
   );
 
@@ -677,7 +663,8 @@ window.setStatus = function (
    DELETE CASE
 ========================= */
 
-window.deleteCase = function (id) {
+window.deleteCase =
+function (id) {
 
   if (
     !confirm(
@@ -688,6 +675,7 @@ window.deleteCase = function (id) {
     return;
 
   }
+
 
   remove(
     ref(
